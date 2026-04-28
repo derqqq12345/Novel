@@ -1,0 +1,13 @@
+# 개발 환경용 프론트엔드 Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 의존성 파일 복사 및 설치
+COPY package.json ./
+RUN npm install
+
+# 소스 코드는 볼륨 마운트로 제공됨 (핫 리로드)
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

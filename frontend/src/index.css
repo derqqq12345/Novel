@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 99 102 241;
+    --color-background: 255 255 255;
+    --color-foreground: 15 23 42;
+  }
+
+  .dark {
+    --color-background: 15 23 42;
+    --color-foreground: 248 250 252;
+  }
+
+  html {
+    @apply antialiased;
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+
+  body {
+    @apply bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-50;
+  }
+
+  /* 한국어 텍스트 최적화 */
+  p, li, td, th {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+}
+
+@layer components {
+  /* 소설 에디터 텍스트 스타일 */
+  .novel-text {
+    @apply font-serif leading-relaxed text-lg;
+    word-break: keep-all;
+    line-height: 2;
+  }
+}
