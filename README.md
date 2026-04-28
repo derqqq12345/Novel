@@ -3,6 +3,7 @@
 > Ollama + Qwen 모델을 활용한 한국어 장편소설 창작 도구
 
 <br>
+<img width="1549" height="834" alt="image" src="https://github.com/user-attachments/assets/e529dcad-b5c4-4d3c-84c3-041dc69af6ab" />
 
 ## 📌 개요
 
