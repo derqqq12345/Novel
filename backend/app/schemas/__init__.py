@@ -15,7 +15,15 @@ from backend.app.schemas.character import (
     CharacterUpdate,
     CharacterResponse,
 )
-from backend.app.schemas.plot import PlotPointCreate, PlotPointUpdate, PlotPointResponse
+from backend.app.schemas.plot import (
+    PlotPointCreate,
+    PlotPointUpdate,
+    PlotPointResponse,
+    PlotPointListResponse,
+    PlotBulkUpsertItem,
+    PlotBulkUpdate,
+    CurrentPlotPositionResponse,
+)
 from backend.app.schemas.worldbuilding import (
     WorldBuildingCreate,
     WorldBuildingUpdate,
@@ -58,6 +66,10 @@ __all__ = [
     "PlotPointCreate",
     "PlotPointUpdate",
     "PlotPointResponse",
+    "PlotPointListResponse",
+    "PlotBulkUpsertItem",
+    "PlotBulkUpdate",
+    "CurrentPlotPositionResponse",
     # WorldBuilding
     "WorldBuildingCreate",
     "WorldBuildingUpdate",

@@ -3,7 +3,7 @@
 """
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -36,5 +36,13 @@ class ProjectResponse(BaseModel):
     status: str
     ai_model: str
     ai_model_config: Dict[str, Any]
+    chapter_count: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class ProjectListResponse(BaseModel):
+    items: List[ProjectResponse]
+    total: int
+    page: int
+    page_size: int

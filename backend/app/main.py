@@ -5,7 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -53,9 +53,61 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # ── 속도 제한 의존성 ──────────────────────────────────────────────────────
+    from backend.app.core.dependencies import RateLimiter
+
     # ── 라우터 등록 ───────────────────────────────────────────────────────────
+    from backend.app.api.auth import router as auth_router
+    from backend.app.api.chapters import router as chapters_router
+    from backend.app.api.characters import router as characters_router
+    from backend.app.api.consistency import router as consistency_router
+    from backend.app.api.export import router as export_router
     from backend.app.api.generate import router as generate_router
+    from backend.app.api.plot import router as plot_router
+    from backend.app.api.projects import router as projects_router
+    from backend.app.api.worldbuilding import router as worldbuilding_router
+
+    app.include_router(
+        auth_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
     app.include_router(generate_router, prefix="/api", tags=["소설 생성"])
+    app.include_router(
+        projects_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        chapters_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        characters_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        plot_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        worldbuilding_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        consistency_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
+    app.include_router(
+        export_router,
+        prefix="/api",
+        dependencies=[Depends(RateLimiter())],
+    )
 
     # ── 헬스체크 엔드포인트 ───────────────────────────────────────────────────
     @app.get("/health", tags=["시스템"])

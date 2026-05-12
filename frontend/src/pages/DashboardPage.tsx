@@ -1,77 +1,100 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const GENRE_LABELS: Record<string, string> = {
-  fantasy: '판타지',
-  romance: '로맨스',
-  mystery: '미스터리',
-  science_fiction: 'SF',
-  thriller: '스릴러',
-}
-
-const DEMO_PROJECTS = [
-  {
-    id: '1',
-    title: '테스트1',
-    genre: 'fantasy',
-    chapter_count: 12,
-    total_word_count: 48320,
-    updated_at: '2026-04-27T10:30:00',
-  },
-  {
-    id: '2',
-    title: '테스트2',
-    genre: 'romance',
-    chapter_count: 8,
-    total_word_count: 31200,
-    updated_at: '2026-04-25T15:00:00',
-  },
-  {
-    id: '3',
-    title: '테스트3',
-    genre: 'mystery',
-    chapter_count: 5,
-    total_word_count: 19800,
-    updated_at: '2026-04-20T09:00:00',
-  },
-]
+import { useProjects } from '../hooks/useProjects'
+import { GENRE_LABELS, type Genre, type ProjectCreate } from '../types'
+import { Spinner } from '../components/ui'
 
 interface NewProjectModal {
   title: string
-  genre: string
+  genre: Genre
   description: string
 }
 
+type SortOption = 'date' | 'title' | 'chapters' | 'words'
+
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [projects, setProjects] = useState(DEMO_PROJECTS)
   const [showModal, setShowModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState<NewProjectModal>({ title: '', genre: 'fantasy', description: '' })
+  const [sortBy, setSortBy] = useState<SortOption>('date')
+  const [form, setForm] = useState<NewProjectModal>({ 
+    title: '', 
+    genre: 'fantasy', 
+    description: '' 
+  })
 
-  const filtered = projects.filter((p) =>
-    p.title.toLowerCase().includes(search.toLowerCase()),
-  )
+  // Use the real API hook
+  const { 
+    projects, 
+    isLoading, 
+    error, 
+    createProject, 
+    deleteProject, 
+    isCreating, 
+    isDeleting 
+  } = useProjects()
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newProject = {
-      id: String(Date.now()),
-      title: form.title || '새 프로젝트',
-      genre: form.genre,
-      chapter_count: 0,
-      total_word_count: 0,
-      updated_at: new Date().toISOString(),
+  // Filter and sort projects
+  const filteredAndSorted = useMemo(() => {
+    let filtered = projects.filter((p) =>
+      p.title.toLowerCase().includes(search.toLowerCase()),
+    )
+
+    // Sort based on selected option
+    switch (sortBy) {
+      case 'title':
+        filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
+        break
+      case 'chapters':
+        filtered = [...filtered].sort((a, b) => (b.chapter_count ?? 0) - (a.chapter_count ?? 0))
+        break
+      case 'words':
+        filtered = [...filtered].sort((a, b) => b.total_word_count - a.total_word_count)
+        break
+      case 'date':
+      default:
+        filtered = [...filtered].sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )
+        break
     }
-    setProjects([newProject, ...projects])
-    setShowModal(false)
-    setForm({ title: '', genre: 'fantasy', description: '' })
+
+    return filtered
+  }, [projects, search, sortBy])
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!form.title.trim()) {
+      alert('제목을 입력해주세요')
+      return
+    }
+
+    try {
+      const projectData: ProjectCreate = {
+        title: form.title,
+        genre: form.genre,
+        description: form.description || undefined,
+      }
+      
+      await createProject(projectData)
+      setShowModal(false)
+      setForm({ title: '', genre: 'fantasy', description: '' })
+    } catch (err) {
+      console.error('Failed to create project:', err)
+      alert('프로젝트 생성에 실패했습니다. 다시 시도해주세요.')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setProjects(projects.filter((p) => p.id !== id))
-    setDeleteTarget(null)
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProject(id)
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+      alert('프로젝트 삭제에 실패했습니다. 다시 시도해주세요.')
+    }
   }
 
   return (
@@ -98,7 +121,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* 상단 타이틀 + 검색 + 생성 버튼 */}
+        {/* 상단 타이틀 + 검색 + 정렬 + 생성 버튼 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">내 소설 프로젝트</h2>
@@ -112,25 +135,58 @@ export default function DashboardPage() {
               placeholder="프로젝트 검색..."
               className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-48"
             />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="date">최근 수정순</option>
+              <option value="title">제목순</option>
+              <option value="chapters">챕터순</option>
+              <option value="words">글자수순</option>
+            </select>
             <button
               onClick={() => setShowModal(true)}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
+              disabled={isCreating}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
             >
-              <span>+</span> 새 프로젝트
+              {isCreating ? <Spinner size="sm" /> : <span>+</span>} 새 프로젝트
             </button>
           </div>
         </div>
 
+        {/* 로딩 상태 */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {/* 에러 상태 */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p className="text-red-800 dark:text-red-200 text-sm">
+              프로젝트를 불러오는데 실패했습니다. 다시 시도해주세요.
+            </p>
+          </div>
+        )}
+
         {/* 프로젝트 그리드 */}
-        {filtered.length === 0 ? (
+        {!isLoading && !error && filteredAndSorted.length === 0 && (
           <div className="text-center py-20 text-slate-400">
             <p className="text-4xl mb-4">📚</p>
-            <p className="text-lg font-medium">프로젝트가 없습니다</p>
-            <p className="text-sm mt-1">새 프로젝트를 만들어 소설을 시작해보세요</p>
+            <p className="text-lg font-medium">
+              {search ? '검색 결과가 없습니다' : '프로젝트가 없습니다'}
+            </p>
+            <p className="text-sm mt-1">
+              {search ? '다른 검색어를 시도해보세요' : '새 프로젝트를 만들어 소설을 시작해보세요'}
+            </p>
           </div>
-        ) : (
+        )}
+
+        {!isLoading && !error && filteredAndSorted.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((project) => (
+            {filteredAndSorted.map((project) => (
               <div
                 key={project.id}
                 className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition cursor-pointer group"
@@ -139,14 +195,15 @@ export default function DashboardPage() {
                 {/* 장르 배지 */}
                 <div className="flex items-start justify-between mb-3">
                   <span className="px-2.5 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium rounded-full">
-                    {GENRE_LABELS[project.genre] ?? project.genre}
+                    {project.genre ? GENRE_LABELS[project.genre] : '미분류'}
                   </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       setDeleteTarget(project.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition text-lg leading-none"
+                    disabled={isDeleting}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 disabled:text-slate-300 transition text-lg leading-none"
                   >
                     ×
                   </button>
@@ -159,7 +216,7 @@ export default function DashboardPage() {
 
                 {/* 통계 */}
                 <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <span>📖 {project.chapter_count}챕터</span>
+                  <span>📖 {project.chapter_count ?? 0}챕터</span>
                   <span>✏️ {project.total_word_count.toLocaleString()}자</span>
                 </div>
 
@@ -179,12 +236,13 @@ export default function DashboardPage() {
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-5">새 프로젝트 만들기</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">제목</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">제목 *</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="소설 제목을 입력하세요"
+                  required
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -192,7 +250,7 @@ export default function DashboardPage() {
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">장르</label>
                 <select
                   value={form.genre}
-                  onChange={(e) => setForm({ ...form, genre: e.target.value })}
+                  onChange={(e) => setForm({ ...form, genre: e.target.value as Genre })}
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {Object.entries(GENRE_LABELS).map(([value, label]) => (
@@ -214,15 +272,24 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                  disabled={isCreating}
+                  className="flex-1 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition"
+                  disabled={isCreating || !form.title.trim()}
+                  className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  만들기
+                  {isCreating ? (
+                    <>
+                      <Spinner size="sm" />
+                      <span>생성 중...</span>
+                    </>
+                  ) : (
+                    '만들기'
+                  )}
                 </button>
               </div>
             </form>
@@ -242,15 +309,24 @@ export default function DashboardPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                disabled={isDeleting}
+                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 취소
               </button>
               <button
                 onClick={() => handleDelete(deleteTarget)}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition"
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition flex items-center justify-center gap-2"
               >
-                삭제
+                {isDeleting ? (
+                  <>
+                    <Spinner size="sm" />
+                    <span>삭제 중...</span>
+                  </>
+                ) : (
+                  '삭제'
+                )}
               </button>
             </div>
           </div>
