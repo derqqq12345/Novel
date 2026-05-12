@@ -4,9 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   chaptersApi,
   charactersApi,
-  plotApi,
-  worldbuildingApi,
-  consistencyApi,
   projectsApi,
 } from '../api'
 import EditorLayout from '../components/editor/EditorLayout'
@@ -15,7 +12,6 @@ import RichTextEditor from '../components/editor/RichTextEditor'
 import ChapterGenerationPanel, {
   GenerationParams,
 } from '../components/editor/ChapterGenerationPanel'
-import ContextSidebar from '../components/editor/ContextSidebar'
 import CharacterList from '../components/characters/CharacterList'
 import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
@@ -58,34 +54,15 @@ export default function EditorPage() {
     queryFn: () => charactersApi.list(projectId),
   })
 
-  const { data: plotPointsData } = useQuery({
-    queryKey: ['plot', projectId],
-    queryFn: () => plotApi.list(projectId),
-  })
-
-  const { data: worldBuildingData } = useQuery({
-    queryKey: ['worldbuilding', projectId],
-    queryFn: () => worldbuildingApi.list(projectId),
-  })
-
   // Ensure data is always an array
   const chapters = Array.isArray(chaptersData) ? chaptersData : []
   const characters = Array.isArray(charactersData) ? charactersData : []
-  const plotPoints = Array.isArray(plotPointsData) ? plotPointsData : []
-  const worldBuilding = Array.isArray(worldBuildingData) ? worldBuildingData : []
 
   // Debug: Log chapters data
   useEffect(() => {
     console.log('Raw chapters data:', chaptersData)
     console.log('Processed chapters:', chapters)
   }, [chaptersData, chapters])
-
-  const { data: consistencyReport } = useQuery({
-    queryKey: ['consistency', selectedChapterId],
-    queryFn: () =>
-      selectedChapterId ? consistencyApi.checkChapter(selectedChapterId) : null,
-    enabled: !!selectedChapterId,
-  })
 
   // Mutations
   const updateChapterMutation = useMutation({
